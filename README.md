@@ -107,7 +107,7 @@ string fullName;
 DateTime modifiedDate;
 ```
 
-Hungarian Notation should also not be used in paramaters.
+Hungarian Notation should also not be used in parameters.
 
 **Bad:**
 
@@ -256,7 +256,7 @@ public class SingleObject
         return _instance;
     }
 
-    public string ShowMessage()
+    public string GetMessage()
     {
         return "Hello World!";
     }
@@ -271,7 +271,7 @@ public static void main(String[] args)
     var singletonObject = SingleObject.GetInstance();
 
     // show the message
-    singletonObject.ShowMessage();
+    singletonObject.GetMessage();
 }
 ```
 
@@ -1583,13 +1583,13 @@ class BankAccount
 {
     private double _balance = 0.0D;
 
-    pubic double Balance {
+    public double Balance {
         get {
             return _balance;
         }
     }
 
-    public BankAccount(balance = 1000)
+    public BankAccount(double balance = 1000)
     {
        _balance = balance;
     }
@@ -1662,6 +1662,85 @@ Console.WriteLine(employee.Name); // Employee name: John Doe
 
 **[⬆ back to top](#table-of-contents)**
 
+</details>
+
+<details>
+  <summary><b>Avoid Primitive Obsession</b></summary>
+
+It is important to differentiate a well-defined object from a lot of loose and repeated attributes in various places.
+
+**Bad:**
+
+```csharp
+    class Person
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Address { get; set; }
+        public string City { get; set; }
+        public string State { get; set; }
+        public string Country { get; set; }
+        public string ZipCode { get; set; }
+    }
+    var badPerson = new Person();
+    badPerson.FirstName = "John";
+    badPerson.LastName = "Doe";
+    badPerson.Address = "Buck Drive";
+    badPerson.City = "Montpelier";
+    badPerson.State = "Vermont";
+    badPerson.Country = "USA";
+    badPerson.ZipCode = "99999";
+	    
+    Console.WriteLine($"{badPerson.FirstName} {badPerson.LastName}"); //John Doe
+    Console.WriteLine($"{badPerson.Address}, {badPerson.City}, {badPerson.State}, {badPerson.Country}, {badPerson.ZipCode}"); //Buck Drive, Montpelier, Vermont, USA, 99999
+```
+**Good:**
+```csharp
+    struct Name
+    {
+        public string FirstName, LastName;
+        public Name(string firstName, string lastName)
+        {
+            FirstName = firstName;
+            LastName = lastName;
+        }
+        public override string ToString()
+        {
+            return $"{FirstName} {LastName}";
+        }
+    }
+    struct Address
+    {
+        public string Street, City, State, Country, ZipCode;
+        public Address(string street, string city, string state, string country, string zipCode)
+        {
+            Street = street;
+            City = city;
+            State = state;
+            Country = country;
+            ZipCode = zipCode;
+        }
+        public override string ToString()
+        {
+            return $"{Street}, {City}, {State}, {Country}, {ZipCode}";
+        }
+    }
+    class Person
+    {
+        public Name Name { get; set; }
+        public Address Address { get; set; }
+    }
+    
+    var goodPerson = new Person();
+    
+    goodPerson.Name = new Name("John","Doe");
+    goodPerson.Address = new Address("Buck Drive", "Montpelier", "Vermont", "USA", "99999");
+    
+    Console.WriteLine($"{goodPerson.Name}"); // John Doe
+    Console.WriteLine($"{goodPerson.Address}"); // Buck Drive, Montpelier, Vermont, USA, 99999
+```
+Although we have more code in the second way, we gain from reuse, maintainability and consistency of information.
+**[⬆ back to top](#table-of-contents)**
 </details>
 
 ## Classes
@@ -2077,7 +2156,7 @@ class Square : Rectangle
     }
 }
 
-Drawable RenderLargeRectangles(Rectangle rectangles)
+Drawable RenderLargeRectangles(Rectangle[] rectangles)
 {
     foreach (rectangle in rectangles)
     {
@@ -2095,21 +2174,24 @@ RenderLargeRectangles(rectangles);
 **Good:**
 
 ```csharp
-abstract class ShapeBase
+using System;
+using System.Collections.Generic;
+
+abstract class RectangleBase
 {
-    protected double Width = 0;
-    protected double Height = 0;
+    public abstract double GetArea();
 
-    abstract public double GetArea();
-
-    public Drawable Render(double area)
+    public void Render(double area)
     {
         // ...
     }
 }
 
-class Rectangle : ShapeBase
+class Rectangle : RectangleBase
 {
+    private double Width = 0;
+    private double Height = 0;
+    
     public void SetWidth(double width)
     {
         Width = width;
@@ -2120,48 +2202,58 @@ class Rectangle : ShapeBase
         Height = height;
     }
 
-    public double GetArea()
+    public override double GetArea()
     {
         return Width * Height;
     }
 }
 
-class Square : ShapeBase
+class Square : RectangleBase
 {
     private double Length = 0;
 
-    public double SetLength(double length)
+    public void SetLength(double length)
     {
         Length = length;
+        Width = Height = lenght;
     }
 
-    public double GetArea()
+    public override double GetArea()
     {
         return Math.Pow(Length, 2);
     }
 }
 
-Drawable RenderLargeRectangles(Rectangle rectangles)
-{
-    foreach (rectangle in rectangles)
-    {
-        if (rectangle is Square)
+public class Program
+{	
+	public static void Main() {
+		IList<RectangleBase> list = new List<RectangleBase>()
         {
-            rectangle.SetLength(5);
-        }
-        else if (rectangle is Rectangle)
+			new Square(),
+			new Rectangle(),
+			new Rectangle()
+		};
+		
+		foreach (RectangleBase sb in list) 
         {
-            rectangle.SetWidth(4);
-            rectangle.SetHeight(5);
-        }
-
-        var area = rectangle.GetArea();
-        rectangle.Render(area);
-    }
+			if (sb is Square) {
+				((Square)sb).SetLength(5); // a
+			}
+			
+			if (sb is Rectangle) 
+            {
+				((Rectangle)sb).SetHeight(4); // a
+				((Rectangle)sb).SetWidth(5); // b
+			}
+			
+			double area = sb.GetArea();
+			
+			Console.WriteLine(area.ToString());
+		}
+	}
 }
 
-var shapes = new[] { new Rectangle(), new Rectangle(), new Square() };
-RenderLargeRectangles(shapes);
+
 ```
 
 **[⬆ back to top](#table-of-contents)**
@@ -2421,9 +2513,9 @@ public List<EmployeeData> ShowList(Employee employees)
 {
     foreach (var employee in employees)
     {
-        var expectedSalary = employees.CalculateExpectedSalary();
-        var experience = employees.GetExperience();
-        var githubLink = employees.GetGithubLink();
+        var expectedSalary = employee.CalculateExpectedSalary();
+        var experience = employee.GetExperience();
+        var githubLink = employee.GetGithubLink();
         var data =
         new[] {
             expectedSalary,
@@ -2594,7 +2686,7 @@ There's a lot to learn about async and await, and it's natural to get a little d
 | Create a task wrapper for an operation or event | `TaskFactory.FromAsync` or `TaskCompletionSource<T>`                              |
 | Support cancellation                            | `CancellationTokenSource` and `CancellationToken`                                 |
 | Report progress                                 | `IProgress<T>` and `Progress<T>`                                                  |
-| Handle streams of data                          | TPL Dataflow or Reactive Extensions                                               |
+| Handle streams of data                          | TPL Dataflow, Reactive Extensions or Async streams (IAsyncEnumerable, C# 8.0)     | 
 | Synchronize access to a shared resource         | `SemaphoreSlim`                                                                   |
 | Asynchronously initialize a resource            | `AsyncLazy<T>`                                                                    |
 | Async-ready producer/consumer structures        | TPL Dataflow or `AsyncCollection<T>`                                              |
